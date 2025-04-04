@@ -84,27 +84,44 @@ time_input = st.text_input("", value="00:00")
 st.markdown("</br>", unsafe_allow_html=True)
 
 # Convert time to seconds
+# Convert time to seconds
 try:
     minutes, seconds = map(int, time_input.split(":"))
     total_seconds = minutes * 60 + seconds
     # st.write(f"Time in seconds: {total_seconds}")
     
-    # Find the closest value in the DataFrame
+        # Find the closest value in the DataFrame
     points_df = df[df.gender == selected_gender.lower()]
 
     if 'mark' in points_df.columns:  # Ensure the 'mark' column exists
-        points_df['abs_diff'] = abs(points_df['mark'] - total_seconds)  # Calculate absolute difference
-        closest_row = points_df.loc[points_df['abs_diff'].idxmin()]  # Find the row with the smallest difference
+        # Filter points_df to only include rows for the selected event
+        event_points_df = points_df[points_df['event'] == selected_event]
+
+        # Calculate the absolute difference for the selected event
+        event_points_df['abs_diff'] = abs(event_points_df['mark'] - total_seconds)  # Calculate absolute difference
+        closest_row = event_points_df.loc[event_points_df['abs_diff'].idxmin()]  # Find the row with the smallest difference
         target_points = closest_row['points']
 
-        # Filter the DataFrame based on the inputs
+        # Filter the DataFrame based on the inputs, excluding the selected event
         filtered_df = df[
-        (df['gender'] == selected_gender.lower()) &
-        (df['points'] == target_points)
+            (df['gender'] == selected_gender.lower()) &
+            (df['points'] == target_points) &
+            (df['event'] != selected_event)  # Exclude the selected event
         ]
+
+        # Add the selected event back to the DataFrame for display
+        selected_event_row = df[
+            (df['gender'] == selected_gender.lower()) &
+            (df['points'] == target_points) &
+            (df['event'] == selected_event)
+        ]
+        filtered_df = pd.concat([filtered_df, selected_event_row])
 
         # Convert 'mark' column from seconds to MM:SS format
         filtered_df['mark'] = filtered_df['mark'].apply(lambda x: f"{int(x // 60):02}:{int(x % 60):02}")
+
+        # Ensure the selected event's time is correctly displayed
+        filtered_df = filtered_df.sort_values(by='event', key=lambda col: col != selected_event)
 
         # Transform the DataFrame to wide format
         wide_df = filtered_df.pivot(index='points', columns='event', values='mark')
